@@ -5,7 +5,7 @@ import { validate } from '../middleware/validate.js';
 import { requestOtpSchema } from '../validators/requestOtp.js';
 import { verifyOtpSchema } from '../validators/verifyOtp.js';
 import { acceptNdaSchema } from '../validators/acceptNda.js';
-import { requestOtp, verifyOtp, getMe, acceptNdaHandler, completeWalkthroughHandler, logout } from '../controllers/auth.js';
+import { requestOtp, verifyOtp, getMe, heartbeat, acceptNdaHandler, completeWalkthroughHandler, logout } from '../controllers/auth.js';
 import { requireAuth } from '../middleware/auth.js';
 
 export const authRouter = Router();
@@ -37,6 +37,8 @@ authRouter.post(
 );
 
 authRouter.get('/me', requireAuth, getMe);
+
+authRouter.post('/heartbeat', requireAuth, heartbeat);
 
 authRouter.post(
   '/accept-nda',

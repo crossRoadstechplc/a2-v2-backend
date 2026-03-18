@@ -77,6 +77,73 @@ describe('GET /test/latest-otp (dev/test only)', () => {
   });
 });
 
+describe('GET /test/promote-admin (dev/test only)', () => {
+  beforeAll(() => {
+    initDb();
+  });
+
+  afterAll(() => {
+    closeDb();
+  });
+
+  beforeEach(() => {
+    clearLastTestOtp();
+  });
+
+  it('promotes user to admin', async () => {
+    const email = `promote-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'Promote', lastName: 'User', email, companyName: 'Test Co' });
+
+    const res = await request(app).get(`/test/promote-admin?email=${encodeURIComponent(email)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      success: true,
+      message: 'User promoted to admin.',
+      email: email.toLowerCase(),
+    });
+  });
+
+  it('returns already admin when user is already admin', async () => {
+    const email = `already-admin-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'Admin', lastName: 'User', email, companyName: 'Test Co' });
+    const { execute } = await import('../src/db/helpers.js');
+    execute('UPDATE users SET is_admin = 1 WHERE email = ?', [email.toLowerCase()]);
+
+    const res = await request(app).get(`/test/promote-admin?email=${encodeURIComponent(email)}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      success: true,
+      message: 'User is already an admin.',
+      email: email.toLowerCase(),
+    });
+  });
+
+  it('returns 404 when user not found', async () => {
+    const res = await request(app).get(
+      '/test/promote-admin?email=nonexistent@never-registered.com'
+    );
+
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({
+      error: 'User not found',
+      email: 'nonexistent@never-registered.com',
+    });
+  });
+
+  it('returns 400 when email missing', async () => {
+    const res = await request(app).get('/test/promote-admin');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/required|email/i);
+  });
+});
+
 describe('GET /test/latest-otp production guard', () => {
   const originalEnv = process.env.NODE_ENV;
 
@@ -94,5 +161,24 @@ describe('GET /test/latest-otp production guard', () => {
 
     expect(res.status).toBe(404);
     expect(res.body).not.toHaveProperty('otp');
+  });
+});
+
+describe('GET /test/promote-admin production guard', () => {
+  const originalEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
+    vi.resetModules();
+  });
+
+  it('promote-admin is blocked in production mode', async () => {
+    process.env.NODE_ENV = 'production';
+    vi.resetModules();
+
+    const { default: appProd } = await import('../src/app.js');
+    const res = await request(appProd).get('/test/promote-admin?email=test@example.com');
+
+    expect(res.status).toBe(404);
   });
 });

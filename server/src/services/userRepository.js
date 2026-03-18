@@ -46,7 +46,7 @@ export function upsertUser({ firstName, lastName, email, companyName, db }) {
 export function getUserByEmail({ email, db }) {
   const normalized = normalizeEmail(email);
   return queryOne(
-    'SELECT id, name, first_name, last_name, email, company_name, nda_accepted_at, nda_version, walkthrough_seen_at FROM users WHERE email = ?',
+    'SELECT id, name, first_name, last_name, email, company_name, nda_accepted_at, nda_version, walkthrough_seen_at, is_admin FROM users WHERE email = ?',
     [normalized],
     db
   );
@@ -61,7 +61,7 @@ export function getUserByEmail({ email, db }) {
  */
 export function getUserById({ userId, db }) {
   return queryOne(
-    'SELECT id, name, first_name, last_name, email, company_name, nda_accepted_at, nda_version, walkthrough_seen_at FROM users WHERE id = ?',
+    'SELECT id, name, first_name, last_name, email, company_name, nda_accepted_at, nda_version, walkthrough_seen_at, is_admin FROM users WHERE id = ?',
     [userId],
     db
   );
@@ -76,6 +76,32 @@ export function getUserById({ userId, db }) {
 export function updateLastLogin({ userId, db }) {
   const now = toIsoTime(new Date());
   execute('UPDATE users SET last_login_at = ? WHERE id = ?', [now, userId], db);
+}
+
+/**
+ * Record login analytics: increment login_count, set last_seen_at.
+ * @param {object} params
+ * @param {number} params.userId
+ * @param {import('better-sqlite3').Database} [params.db]
+ */
+export function recordLoginAnalytics({ userId, db }) {
+  const now = toIsoTime(new Date());
+  execute(
+    'UPDATE users SET login_count = COALESCE(login_count, 0) + 1, last_seen_at = ?, last_login_at = ? WHERE id = ?',
+    [now, now, userId],
+    db
+  );
+}
+
+/**
+ * Update user last_seen_at (lightweight, no login_count change).
+ * @param {object} params
+ * @param {number} params.userId
+ * @param {import('better-sqlite3').Database} [params.db]
+ */
+export function updateLastSeenAt({ userId, db }) {
+  const now = toIsoTime(new Date());
+  execute('UPDATE users SET last_seen_at = ? WHERE id = ?', [now, userId], db);
 }
 
 /**

@@ -1,13 +1,15 @@
+import { toIsoTime } from '../../db/helpers.js';
 import { hashSessionToken } from './token.js';
 import {
-  findSessionByTokenHash,
   findSessionByTokenHashRaw,
   revokeSessionByTokenHash,
 } from './repository.js';
+import { finalizeAccessLogForSession } from '../accessLogRepository.js';
+import { ACCESS_LOG_STATUS } from '../../constants/accessLog.js';
 
 /**
  * Validate session token. Returns session if valid, null otherwise.
- * Optionally revokes expired sessions.
+ * Optionally revokes expired sessions (and finalizes access log first).
  * @param {object} params
  * @param {string} params.token
  * @param {boolean} [params.revokeExpired=true] - Revoke session if expired
@@ -34,6 +36,13 @@ export function validateSessionToken({ token, revokeExpired = true, db }) {
   const expiresAt = new Date(session.expiresAt);
   if (expiresAt <= now) {
     if (revokeExpired) {
+      finalizeAccessLogForSession({
+        sessionId: session.id,
+        userId: session.userId,
+        endTime: toIsoTime(now),
+        status: ACCESS_LOG_STATUS.EXPIRED,
+        db,
+      });
       revokeSessionByTokenHash({ tokenHash, db });
     }
     return { valid: false, reason: 'expired' };

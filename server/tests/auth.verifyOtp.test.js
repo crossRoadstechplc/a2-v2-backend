@@ -214,4 +214,105 @@ describe('POST /auth/verify-otp', () => {
     expect(expiresAt).toBeGreaterThanOrEqual(expectedMin);
     expect(expiresAt).toBeLessThanOrEqual(expectedMax);
   });
+
+  it('successful OTP verification increments login_count', async () => {
+    const email = `logincount-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'LoginCount', lastName: 'User', email, companyName: 'Test Co' });
+
+    const otp = getLastTestOtp();
+    await request(app).post('/auth/verify-otp').send({ email, otp });
+
+    const user = query('SELECT login_count FROM users WHERE email = ?', [email.toLowerCase()])[0];
+    expect(user).toBeDefined();
+    expect(user.login_count).toBe(1);
+
+    await request(app).post('/auth/request-otp').send({ firstName: 'LoginCount', lastName: 'User', email, companyName: 'Test Co' });
+    const otp2 = getLastTestOtp();
+    await request(app).post('/auth/verify-otp').send({ email, otp: otp2 });
+
+    const user2 = query('SELECT login_count FROM users WHERE email = ?', [email.toLowerCase()])[0];
+    expect(user2.login_count).toBe(2);
+  });
+
+  it('successful OTP verification creates access_logs row', async () => {
+    const email = `accesslog-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'AccessLog', lastName: 'User', email, companyName: 'Test Co' });
+
+    const otp = getLastTestOtp();
+    const res = await request(app)
+      .post('/auth/verify-otp')
+      .send({ email, otp });
+
+    expect(res.status).toBe(200);
+    const tokenHash = hashSessionToken(res.body.token);
+    const session = query('SELECT id, user_id FROM sessions WHERE token_hash = ?', [tokenHash])[0];
+    expect(session).toBeDefined();
+
+    const logs = query('SELECT * FROM access_logs WHERE session_id = ?', [session.id]);
+    expect(logs).toHaveLength(1);
+    expect(logs[0].user_id).toBe(session.user_id);
+    expect(logs[0].session_id).toBe(session.id);
+    expect(logs[0].status).toBe('active');
+    expect(logs[0].login_at).toBeDefined();
+    expect(logs[0].last_activity_at).toBeDefined();
+  });
+
+  it('access_logs row is linked to correct session and user', async () => {
+    const email = `link-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'Link', lastName: 'User', email, companyName: 'Test Co' });
+
+    const otp = getLastTestOtp();
+    const res = await request(app).post('/auth/verify-otp').send({ email, otp });
+
+    const user = query('SELECT id FROM users WHERE email = ?', [email.toLowerCase()])[0];
+    const tokenHash = hashSessionToken(res.body.token);
+    const session = query('SELECT id FROM sessions WHERE token_hash = ?', [tokenHash])[0];
+
+    const log = query('SELECT * FROM access_logs WHERE session_id = ?', [session.id])[0];
+    expect(log.user_id).toBe(user.id);
+    expect(log.session_id).toBe(session.id);
+  });
+
+  it('sessions.last_activity_at is initialized on login', async () => {
+    const email = `activity-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'Activity', lastName: 'User', email, companyName: 'Test Co' });
+
+    const otp = getLastTestOtp();
+    const before = Math.floor(Date.now() / 1000) * 1000;
+    const res = await request(app).post('/auth/verify-otp').send({ email, otp });
+    const after = Math.floor(Date.now() / 1000) * 1000;
+
+    const tokenHash = hashSessionToken(res.body.token);
+    const session = query('SELECT last_activity_at FROM sessions WHERE token_hash = ?', [tokenHash])[0];
+    expect(session.last_activity_at).toBeDefined();
+    const ts = new Date(session.last_activity_at).getTime();
+    expect(ts).toBeGreaterThanOrEqual(before);
+    expect(ts).toBeLessThanOrEqual(after + 1000);
+  });
+
+  it('users.last_seen_at is updated on login', async () => {
+    const email = `lastseen-${Date.now()}@test.com`;
+    await request(app)
+      .post('/auth/request-otp')
+      .send({ firstName: 'LastSeen', lastName: 'User', email, companyName: 'Test Co' });
+
+    const otp = getLastTestOtp();
+    const before = Math.floor(Date.now() / 1000) * 1000;
+    await request(app).post('/auth/verify-otp').send({ email, otp });
+    const after = Math.floor(Date.now() / 1000) * 1000;
+
+    const user = query('SELECT last_seen_at FROM users WHERE email = ?', [email.toLowerCase()])[0];
+    expect(user.last_seen_at).toBeDefined();
+    const ts = new Date(user.last_seen_at).getTime();
+    expect(ts).toBeGreaterThanOrEqual(before);
+    expect(ts).toBeLessThanOrEqual(after + 1000);
+  });
 });

@@ -106,12 +106,45 @@ server/
 | POST | `/auth/request-otp` | No | Request OTP (rate limited) |
 | POST | `/auth/verify-otp` | No | Verify OTP, get session token |
 | GET | `/auth/me` | Yes | Current user |
+| POST | `/auth/heartbeat` | Yes | Track session activity |
 | POST | `/auth/accept-nda` | Yes | Accept NDA |
 | POST | `/auth/complete-walkthrough` | Yes | Mark walkthrough done |
 | POST | `/auth/logout` | Yes | Revoke session |
+| GET | `/admin/check` | Admin | Verify admin access |
+| GET | `/admin/access-logs` | Admin | Paginated access logs |
+| GET | `/admin/users/access-summary` | Admin | User access summaries |
+| GET | `/admin/active-sessions` | Admin | Active sessions only |
 | GET | `/test/latest-otp?email=` | No | Dev/test: get OTP (not in prod) |
+| GET | `/test/promote-admin?email=` | No | Dev/test: promote user to admin |
 
 See **API.md** for full request/response documentation.
+
+## Admin Setup
+
+**Promote a user to admin (SQLite):**
+
+```sql
+UPDATE users SET is_admin = 1 WHERE email = 'user@example.com';
+```
+
+In development/test, use `GET /test/promote-admin?email=user@example.com` (dev/test only).
+
+## Access Log Behavior
+
+- **Login:** Creates `access_logs` row with `status = 'active'`.
+- **Heartbeat:** Updates `last_activity_at` on active session only (lightweight, no new rows).
+- **Logout / Expiry:** Finalizes active log: sets `logout_at`, `session_seconds`, `status` (`logged_out` or `expired`), adds to `users.total_session_seconds`.
+- **Idempotent:** Finalization only runs for `status = 'active'`; repeated logout/expiry does not double-count.
+
+## Admin Analytics Endpoints (Summary)
+
+| Endpoint | Response shape |
+|----------|----------------|
+| `GET /admin/access-logs` | `{ success, data: [{ userId, name, email, sessionId, loginAt, logoutAt, lastActivityAt, sessionSeconds, status, ipAddress, userAgent }] }` |
+| `GET /admin/users/access-summary` | `{ success, data: [{ userId, name, email, isAdmin, loginCount, totalSessionSeconds, lastSeenAt }] }` |
+| `GET /admin/active-sessions` | `{ success, data: [{ userId, name, email, sessionId, loginAt, lastActivityAt, ipAddress, userAgent }] }` |
+
+Query params for `/admin/access-logs`: `limit`, `offset`, `email`, `activeOnly`, `dateFrom`, `dateTo`.
 
 ## Environment Safety
 
@@ -124,9 +157,10 @@ SQLite at `./data/a2-gateway.db` by default. Migrations run on startup.
 
 | Table | Purpose |
 |-------|---------|
-| users | Auth, NDA, walkthrough |
+| users | Auth, NDA, walkthrough, admin, login_count, total_session_seconds |
 | otp_codes | OTP (hashed, 10 min expiry) |
 | sessions | Sessions (4 hr expiry, revocable) |
+| access_logs | Login sessions, activity, duration (joined with users) |
 
 ## Postman
 

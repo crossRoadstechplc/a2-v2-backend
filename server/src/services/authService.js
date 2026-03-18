@@ -1,8 +1,11 @@
+import { getDb } from '../db/connection.js';
+import { transaction } from '../db/helpers.js';
+import { toIsoTime } from '../db/helpers.js';
 import { upsertUser } from './userRepository.js';
 import { requestOtp } from './otpService.js';
 import {
   getUserByEmail,
-  updateLastLogin,
+  recordLoginAnalytics,
 } from './userRepository.js';
 import { verifyOtpCode } from './otpService.js';
 import {
@@ -10,6 +13,7 @@ import {
   hashSessionToken,
   createSession,
 } from './session/index.js';
+import { createAccessLog } from './accessLogRepository.js';
 
 /**
  * Request OTP for auth. Creates/updates user, generates and sends OTP.
@@ -35,6 +39,9 @@ export async function requestOtpForAuth({ firstName, lastName, email, companyNam
 
 /**
  * Verify OTP and create session. Returns token and user summary.
+ * On success: creates session, records login analytics (login_count, last_seen_at),
+ * sets sessions.last_activity_at, and creates access_logs row.
+ *
  * @param {object} params
  * @param {string} params.email
  * @param {string} params.otp
@@ -54,18 +61,36 @@ export function verifyOtpForAuth({ email, otp, userAgent, requestIp, db }) {
     return { success: false, status: 401 };
   }
 
+  const database = db ?? getDb();
   const token = generateSessionToken();
   const tokenHash = hashSessionToken(token);
+  const loginAt = toIsoTime(new Date());
 
-  createSession({
-    userId: user.id,
-    tokenHash,
-    userAgent,
-    requestIp,
-    db,
-  });
+  transaction(
+    () => {
+      const { sessionId, lastActivityAt } = createSession({
+        userId: user.id,
+        tokenHash,
+        userAgent,
+        requestIp,
+        lastActivityAt: loginAt,
+        db: database,
+      });
 
-  updateLastLogin({ userId: user.id, db });
+      recordLoginAnalytics({ userId: user.id, db: database });
+
+      createAccessLog({
+        userId: user.id,
+        sessionId,
+        loginAt,
+        lastActivityAt,
+        ipAddress: requestIp,
+        userAgent,
+        db: database,
+      });
+    },
+    database
+  );
 
   return {
     success: true,
@@ -76,6 +101,7 @@ export function verifyOtpForAuth({ email, otp, userAgent, requestIp, db }) {
       lastName: user.last_name ?? user.name?.split(' ').slice(1).join(' ') ?? '',
       email: user.email,
       companyName: user.company_name ?? '',
+      isAdmin: !!(user.is_admin),
     },
     ndaAccepted: !!user.nda_accepted_at,
     walkthroughSeen: !!user.walkthrough_seen_at,

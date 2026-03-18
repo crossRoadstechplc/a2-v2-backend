@@ -82,6 +82,16 @@
           }
         },
         {
+          "name": "Heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/auth/heartbeat"
+          }
+        },
+        {
           "name": "Accept NDA",
           "request": {
             "method": "POST",
@@ -119,6 +129,51 @@
       ]
     },
     {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/admin/check"
+          }
+        },
+        {
+          "name": "Access Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/admin/access-logs?limit=50&offset=0"
+          }
+        },
+        {
+          "name": "Users Access Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/admin/users/access-summary"
+          }
+        },
+        {
+          "name": "Active Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/admin/active-sessions"
+          }
+        }
+      ]
+    },
+    {
       "name": "Test (dev only)",
       "item": [
         {
@@ -127,6 +182,14 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/test/latest-otp?email={{email}}"
+          }
+        },
+        {
+          "name": "Promote Admin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/test/promote-admin?email={{email}}"
           }
         }
       ]

@@ -1,6 +1,7 @@
 import { requestOtpForAuth, verifyOtpForAuth } from '../services/authService.js';
+import { recordHeartbeat } from '../services/heartbeatService.js';
 import { acceptNda, completeWalkthrough } from '../services/userRepository.js';
-import { revokeCurrentSession } from '../services/session/revoke.js';
+import { logoutWithFinalization } from '../services/session/revoke.js';
 import { formatUser, successMessage } from '../utils/responseFormats.js';
 
 /**
@@ -52,6 +53,19 @@ export async function verifyOtp(req, res, next) {
 }
 
 /**
+ * POST /auth/heartbeat
+ * Update session/access_log/user activity timestamps. Auth required.
+ */
+export function heartbeat(req, res, next) {
+  try {
+    recordHeartbeat({ token: req.token });
+    res.status(200).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /auth/me
  * Return current authenticated user.
  */
@@ -94,11 +108,11 @@ export function completeWalkthroughHandler(req, res, next) {
 
 /**
  * POST /auth/logout
- * Revoke the current session.
+ * Finalize access log, accumulate session time, revoke session.
  */
 export function logout(req, res, next) {
   try {
-    revokeCurrentSession({ token: req.token });
+    logoutWithFinalization({ token: req.token });
 
     res.status(200).json(successMessage('Logged out successfully.'));
   } catch (err) {

@@ -18,6 +18,7 @@ export function formatUser(user) {
     lastName: user.last_name ?? user.name?.split(' ').slice(1).join(' ') ?? '',
     email: user.email,
     companyName: user.company_name ?? '',
+    isAdmin: !!(user.is_admin),
     ndaAccepted: !!user.nda_accepted_at,
     ndaAcceptedAt: user.nda_accepted_at ?? null,
     ndaVersion: user.nda_version ?? null,

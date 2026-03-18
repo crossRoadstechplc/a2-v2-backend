@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
+import { adminRouter } from './routes/admin.js';
 import { testRouter } from './routes/test.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -39,6 +40,7 @@ app.use(express.json());
 // Routes
 app.use('/health', healthRouter);
 app.use('/auth', authRouter);
+app.use('/admin', adminRouter);
 
 if (config.isDevOrTest) {
   app.use('/test', testRouter);
