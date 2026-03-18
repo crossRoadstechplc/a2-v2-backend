@@ -522,7 +522,72 @@ Returns only sessions/access_logs still considered active (status = active, sess
 
 ---
 
-### 13. Test: Latest OTP (dev/test only)
+### 13. Admin Promote User
+
+**POST** `/admin/users/promote`
+
+**Auth:** Bearer token required. Admin role required.
+
+Promote a user to admin by email.
+
+**Request**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| email | string | Yes | Email of user to promote |
+
+**Example**
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response 200** (promoted)
+
+```json
+{
+  "success": true,
+  "promoted": true,
+  "message": "User promoted to admin",
+  "email": "user@example.com"
+}
+```
+
+**Response 200** (already admin)
+
+```json
+{
+  "success": true,
+  "promoted": false,
+  "message": "User is already an admin",
+  "email": "user@example.com"
+}
+```
+
+**Response 404** (user not found)
+
+```json
+{
+  "success": false,
+  "message": "User not found",
+  "email": "user@example.com"
+}
+```
+
+**Response 400** (validation)
+
+```json
+{
+  "success": false,
+  "error": "Email is required"
+}
+```
+
+---
+
+### 14. Test: Latest OTP (dev/test only)
 
 **GET** `/test/latest-otp?email=user@example.com`
 
@@ -565,7 +630,7 @@ Returns only sessions/access_logs still considered active (status = active, sess
 
 ---
 
-### 14. Test: Promote Admin (dev/test only)
+### 15. Test: Promote Admin (dev/test only)
 
 **GET** `/test/promote-admin?email=user@example.com`
 

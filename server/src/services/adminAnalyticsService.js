@@ -1,5 +1,28 @@
-import { query, normalizeEmail } from '../db/helpers.js';
+import { query, execute, queryOne, normalizeEmail } from '../db/helpers.js';
 import { ACCESS_LOG_STATUS } from '../constants/accessLog.js';
+
+/**
+ * Promote a user to admin by email. Admin-only.
+ * @param {object} params
+ * @param {string} params.email
+ * @param {import('better-sqlite3').Database} [params.db]
+ * @returns {{ success: boolean; promoted: boolean; email: string; message: string }}
+ */
+export function promoteUserToAdmin({ email, db }) {
+  const normalized = normalizeEmail(email);
+  const user = queryOne('SELECT id, email, is_admin FROM users WHERE email = ?', [normalized], db);
+
+  if (!user) {
+    return { success: false, promoted: false, email: normalized, message: 'User not found' };
+  }
+
+  if (user.is_admin === 1) {
+    return { success: true, promoted: false, email: normalized, message: 'User is already an admin' };
+  }
+
+  execute('UPDATE users SET is_admin = 1 WHERE email = ?', [normalized], db);
+  return { success: true, promoted: true, email: normalized, message: 'User promoted to admin' };
+}
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;

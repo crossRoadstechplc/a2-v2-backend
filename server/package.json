@@ -10,7 +10,11 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": ["a2", "simulator", "gateway"],
+  "keywords": [
+    "a2",
+    "simulator",
+    "gateway"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -22,6 +26,7 @@
     "express-rate-limit": "^7.4.1",
     "helmet": "^7.1.0",
     "nodemailer": "^6.9.16",
+    "sqlite3": "^6.0.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

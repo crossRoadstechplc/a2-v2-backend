@@ -310,4 +310,30 @@ describe('Admin analytics endpoints', () => {
       }
     });
   });
+
+  describe('POST /admin/users/promote', () => {
+    it('admin can promote user to admin', async () => {
+      const targetEmail = `promote-target-${Date.now()}@test.com`;
+      await request(app)
+        .post('/auth/request-otp')
+        .send({ firstName: 'Target', lastName: 'User', email: targetEmail, companyName: 'Test Co' });
+
+      const adminEmail = `admin-promote-${Date.now()}@test.com`;
+      const token = await getAdminToken(adminEmail);
+
+      const res = await request(app)
+        .post('/admin/users/promote')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json')
+        .send({ email: targetEmail });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        success: true,
+        promoted: true,
+        message: 'User promoted to admin',
+        email: targetEmail.toLowerCase(),
+      });
+    });
+  });
 });

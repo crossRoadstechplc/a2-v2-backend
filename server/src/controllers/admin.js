@@ -1,4 +1,9 @@
-import { getAccessLogs, getUsersAccessSummary, getActiveSessions } from '../services/adminAnalyticsService.js';
+import {
+  getAccessLogs,
+  getUsersAccessSummary,
+  getActiveSessions,
+  promoteUserToAdmin,
+} from '../services/adminAnalyticsService.js';
 
 /**
  * GET /admin/access-logs
@@ -53,3 +58,32 @@ export function getActiveSessionsHandler(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * POST /admin/users/promote
+ * Admin-only. Promote a user to admin by email.
+ */
+export function promoteUserHandler(req, res, next) {
+  try {
+    const { email } = req.validated;
+    const result = promoteUserToAdmin({ email });
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        message: result.message,
+        email: result.email,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      promoted: result.promoted,
+      message: result.message,
+      email: result.email,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

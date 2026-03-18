@@ -170,6 +170,21 @@
             ],
             "url": "{{baseUrl}}/admin/active-sessions"
           }
+        },
+        {
+          "name": "Promote User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": "{{baseUrl}}/admin/users/promote"
+          }
         }
       ]
     },
